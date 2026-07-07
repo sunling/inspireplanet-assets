@@ -1,0 +1,46 @@
+name: Migrate user_uploads from inspireplanet.cc
+
+on:
+  push:
+    paths:
+      - '.github/workflows/migrate-user-uploads.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate-user-uploads:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout destination repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Clone source repository
+        run: |
+          rm -rf /tmp/inspireplanet.cc
+          git clone --depth 1 https://github.com/sunling/inspireplanet.cc.git /tmp/inspireplanet.cc
+
+      - name: Copy user uploads
+        run: |
+          mkdir -p user_uploads
+          if [ -d /tmp/inspireplanet.cc/user_uploads ]; then
+            rsync -av --delete --exclude '.gitkeep' /tmp/inspireplanet.cc/user_uploads/ user_uploads/
+          else
+            echo "No user_uploads directory found in source repository."
+          fi
+
+      - name: Commit migrated uploads
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add user_uploads
+          if git diff --staged --quiet; then
+            echo "No upload changes to commit."
+          else
+            git commit -m "Migrate user_uploads from inspireplanet.cc"
+            git push
+          fi
